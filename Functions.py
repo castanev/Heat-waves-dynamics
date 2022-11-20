@@ -1,8 +1,19 @@
-
+# import pandas as pd
+# import datetime as dt
+# import scipy as scp
+# import matplotlib.pyplot as plt
+# import numpy as np
+# import scipy as scp
+# from cartopy import crs
+# import cartopy
+# import matplotlib.ticker as mticker
+# import matplotlib.colors as mcolors
+# import os
 
 # ================================= PLOTS ===============================================
 def center_white_anom(cmap, num, bounds, limite):
     import matplotlib as mpl
+    import numpy as np
     barcmap = mpl.cm.get_cmap(cmap, num)
     barcmap.set_bad(color='white', alpha=0.5)
     bar_vals = barcmap(np.arange(num))  # extract those values as an array
@@ -15,99 +26,116 @@ def center_white_anom(cmap, num, bounds, limite):
 
 
 
-def maps1(x, y, minn, maxx, matriz,  cmap, path, norm, units=''):
+def maps1(x, y, minn, maxx, matriz,  cmap, path, norm, units='', topography = ''):
+    import matplotlib.pyplot as plt
+    import cartopy
+    from cartopy import crs
     fig = plt.figure(figsize=[8, 6])
-    ax = fig.add_subplot(1, 1, 1)
+    ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(central_longitude=180))
+
+    if topography == True:
+        ax.add_feature(cartopy.feature.BORDERS, lw=0.5)
+        ax.add_feature(cartopy.feature.COASTLINE, lw=0.5, zorder=11)
+
     im = ax.contourf(x, y[:], matriz[:,:], levels=20, cmap = cmap, vmin=minn, vmax=maxx, norm=norm)
     r = ax.contour(x, y, matriz, levels=20, colors='k', linewidths=0.5)
-    #ax.invert_yaxis()
     cb = plt.colorbar(im, orientation="horizontal", pad=0.1, format='%.1f', shrink=0.8)
     cb.set_label(units, fontsize=9, color='dimgrey')
-    cb.outline.set_edgecolor(None)
-    cb.ax.tick_params(labelcolor='dimgrey', color='dimgrey', labelsize=9)
+    cb.ax.tick_params(labelsize=9)
     plt.savefig(path, dpi=200)
     plt.close()
 
 
 
 def maps2(Lons, Lats, minn, maxx, matriz, var, cmap, path, topography):
+    import matplotlib.pyplot as plt
+    import cartopy
+    import numpy as np
+    import matplotlib.ticker as mticker
+    from cartopy import crs
     fig = plt.figure(figsize=[6.5, 4.5])
     ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(central_longitude=180))
     
     if topography == True:
         ax.add_feature(cartopy.feature.BORDERS, lw=0.5)
-        ax.outline_patch.set_edgecolor('None')
         ax.add_feature(cartopy.feature.COASTLINE, lw=0.5, zorder=11)
 
     im = ax.contourf(Lons, Lats, matriz, cmap=cmap, extend='both', \
                      levels=np.arange(minn, maxx, 0.2), transform=crs.PlateCarree())
+    ax.set_yticks([30, 35, 40, 45])
+    ax.tick_params(axis='both', labelsize=14)
 
     gl = ax.gridlines(crs=crs.PlateCarree(), draw_labels=True,
                       linewidth=0.7, color='gray', alpha=0.2, linestyle='--')
 
     gl.top_labels = False
     gl.right_labels = False
-    gl.ylocator = mticker.FixedLocator(Lats[np.arange(0, len(Lats), 3)])
-    gl.xlabel_style = {'size': 10, 'color': 'dimgrey'}
-    gl.ylabel_style = {'size': 10, 'color': 'dimgrey'}
-
+    gl.ylocator = mticker.FixedLocator([30, 35, 40, 45])
+    gl.xlabel_style = {'size': 10}
+    gl.ylabel_style = {'size': 10}
+    
     cbaxes = fig.add_axes([0.2, 0.12, 0.6, 0.030])
     cb = plt.colorbar(im, orientation="horizontal", pad=0.1, cax=cbaxes, format='%.1f')
     cb.set_label(var, fontsize=10, color='dimgrey')
-    cb.outline.set_edgecolor(None)
-    cb.ax.tick_params(labelcolor='dimgrey', color='dimgrey', labelsize=9)
+    cb.ax.tick_params(labelsize=9)
     plt.savefig(path, dpi=200)
     plt.close()
 
 
-def composites_coastlines(lats, lons, Matriz_t, min_t, max_t, Matriz_sf, levels_sf, Matriz_env, levels_env, lat_minHW, lat_maxHW, lon_minHW, lon_maxHW, cmap, path, var = ''):
-    fig = plt.figure(figsize=[15, 20])
+def composites_coastlines(lats, lons, Matriz_t, min_t, max_t, Matriz_sf, levels_sf, Matriz_env, levels_env, lat_minHW, lat_maxHW, lon_minHW, lon_maxHW, cmap, path, var = '', topography = ''):
+    import matplotlib.pyplot as plt
+    import cartopy
+    import numpy as np
+    import matplotlib.ticker as mticker
+    from cartopy import crs
+    fig = plt.figure(figsize=[15, 15])
     for i, tit in enumerate(['Day -20', 'Day -15', 'Day -10', 'Day -5', 'Day 0', 'Day 5']):
         ax = fig.add_subplot(6, 1, i + 1, projection=crs.PlateCarree(central_longitude=180))
-        ax.outline_patch.set_edgecolor('None')
-        ax.add_feature(cartopy.feature.COASTLINE, lw=0.5, zorder=11)
+        if topography == True:
+            ax.add_feature(cartopy.feature.COASTLINE, lw=0.6, zorder=11)
 
+        ax.set_title(tit, fontsize = 15)
         im = ax.contourf(lons, lats, Matriz_t[i, :, :], cmap=cmap, extend='both', levels=np.arange(min_t, max_t, 0.2),transform=crs.PlateCarree())
-        #im2 = ax.contour(lons, lats, Matriz_env[i, :, :], extend='both', levels=[1,2,2.5], colors='k', linewidths=1.5,transform=crs.PlateCarree())
-        im2 = ax.contour(lons, lats, Matriz_env[i, :, :], extend='both', levels=levels_env, colors='k', linewidths=1.5,transform=crs.PlateCarree())
+        im2 = ax.contour(lons, lats, Matriz_env[i, :, :], extend='both', levels=levels_env, colors='k', linewidths=2.3,transform=crs.PlateCarree())
         ax.clabel(im2, inline=True, fontsize=10, fmt='%1.1f')
-        im3 = ax.contour(lons, lats, Matriz_sf[i, :, :], extend='both', levels=levels_sf, colors='limegreen', negative_linestyles = 'dashed', linewidths=1.7,transform=crs.PlateCarree())
-        #ax.clabel(im3, inline=True, fontsize=10, fmt='%1.1f')
+        levels_sf = np.array(levels_sf)
+        im3 = ax.contour(lons, lats, Matriz_sf[i, :, :], extend='both', levels=levels_sf[levels_sf>0], colors='firebrick', linewidths=2.1, transform=crs.PlateCarree())
+        im4 = ax.contour(lons, lats, Matriz_sf[i, :, :], extend='both', levels=levels_sf[levels_sf<0], colors='mediumblue', negative_linestyles = 'dashed', linewidths=2,transform=crs.PlateCarree())
 
         ax.plot([lon_minHW, lon_maxHW], [lat_minHW, lat_minHW], transform=crs.PlateCarree(), color='b', lw=1.5)
         ax.plot([lon_minHW, lon_maxHW], [lat_maxHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
         ax.plot([lon_minHW, lon_minHW], [lat_minHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
         ax.plot([lon_maxHW, lon_maxHW], [lat_minHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
-        plt.ylim(25,70)
-        #plt.ylim(15,60)
+        ax.set_yticks([30, 50])
+        ax.tick_params(axis='both', labelsize=14)
+        plt.ylim(20,70)
 
         gl = ax.gridlines(crs=crs.PlateCarree(), draw_labels=True,linewidth=0.8, color='gray', alpha=0.5, linestyle='--')
         gl.top_labels = False
-        # gl.ylocator = mticker.FixedLocator([45, 60])
-        # gl.left_labels = True
-        # gl.yformatter = LATITUDE_FORMATTER
-        gl.xlabel_style = {'size': 14, 'color': 'dimgrey'}
-        gl.ylabel_style = {'size': 14, 'color': 'dimgrey'}
-        ax.set_title(f'{tit}', fontsize=15, color='k')
+        gl.ylocator = mticker.FixedLocator([30, 50])
+        gl.xlabel_style = {'size': 14}
+        gl.ylabel_style = {'size': 14}
 
     cbaxes = fig.add_axes([0.3, 0.06, 0.4, 0.015])
-    cb = plt.colorbar(im, orientation="horizontal", pad=0.2, cax=cbaxes, format='%.2f')
-    cb.set_label(var, fontsize=15, color='dimgrey')
-    cb.outline.set_edgecolor('dimgrey')
-    cb.ax.tick_params(labelcolor='dimgrey', color='dimgrey', labelsize=14)
+    cb = plt.colorbar(im, orientation="horizontal", pad=0.2, cax=cbaxes, format='%.1f')
+    cb.set_label(var, fontsize=15)
+    cb.outline.set_edgecolor('k')
+    cb.ax.tick_params(labelsize=14)
     plt.subplots_adjust(left=0.1,
                     bottom=0.1,
                     right=0.9,
                     top=0.92,
-                    wspace=0.3,
-                    hspace=0.3)
-    #plt.show()
-    plt.savefig(path, dpi=200)
+                    wspace=0.1,
+                    hspace=0.1)
+
+    plt.savefig(path, dpi=500)
     plt.close()
 
 
 def hovmoller(time_lags, lons, Matriz_t, cmap_t, norm_t, min_t, max_t, Matriz_sf, cmap_sf, norm_sf, min_sf, max_sf, Matriz_env, levels_env, path, var_1 = '', var_2 = ''):
     import matplotlib.colors
+    import matplotlib.pyplot as plt
+    import numpy as np
     RdYlBu_list = ['rgb(165,0,38)','rgb(215,48,39)','rgb(244,109,67)','rgb(253,174,97)','rgb(254,224,144)','rgb(255,255,191)','rgb(224,243,248)','rgb(171,217,233)','rgb(116,173,209)','rgb(69,117,180)','rgb(49,54,149)']
     my_cmap = matplotlib.colors.ListedColormap(RdYlBu_list, name='RdYlBu')
 
@@ -168,6 +196,7 @@ def duration_heat_waves(pos_hw, min_duration):
         if pos_hw[i] + 1 == pos_hw[i + 1]:
             count += 1
         else:
+            print(count)
             if count >= min_duration and len(pos_day1_hw) == 0:
                 duration_hw.append(count)
                 pos_day1_hw.append(pos_hw[i - count + 1])
@@ -179,6 +208,7 @@ def duration_heat_waves(pos_hw, min_duration):
 
 
 def anomalies_seasons(df_VAR):
+    import numpy as np
     ANOMA = df_VAR * np.nan
     for i in np.arange(1, 13):
         mes = df_VAR.loc[df_VAR.index.month == i]
@@ -195,6 +225,7 @@ def anomalies_seasons(df_VAR):
 
 
 def anomalies_noseasons(df_VAR):
+    import numpy as np
     ANOMA = df_VAR * np.nan
     media = df_VAR.mean()
     for i in range(df_VAR.shape[0]):
@@ -203,47 +234,13 @@ def anomalies_noseasons(df_VAR):
         ANOMA.iloc[i] = anoma
     return ANOMA
 
+#anomalies_seasons_model(df_t, days, Month)
+
 
 # ================================= EVOLUTION OF HEAT WAVES ===============================================
-
-def calculate_composites2(pos_HW, matriz):
-    dic_composites = {}
-
-    time_lags = np.arange(-20, 21, 1)
-    for pos in pos_HW.index:
-        if pos == 0: 
-            dic_composites[0] = []
-            dic_composites[0].append(pos_HW.iloc[0][0])
-            continue
-        elif pos_HW.iloc[pos][0] >= 27270: break  # len(other variables)
-        elif pos == pos_HW.index[-1]:
-            break
-        elif pos_HW.iloc[pos][0]-1 != pos_HW.iloc[pos-1][0]:
-            for num in time_lags:  
-                if num in dic_composites.keys(): dic_composites[num].append(pos_HW.iloc[pos][0]+num)  
-                else: 
-                    dic_composites[num] = []
-                    dic_composites[num].append(pos_HW.iloc[pos][0]+num)
-
-    composites_matrix_complete =  np.zeros((len(time_lags), matriz.shape[1], matriz.shape[2]))
-    for ii, lag in enumerate(dic_composites.keys()):
-        composites_matrix_complete[ii] = np.mean(matriz[dic_composites[lag]], axis = 0)
-
-    day_0 = np.mean(matriz[dic_composites[0]], axis=0)
-    day_5 = np.mean(matriz[dic_composites[-5]], axis=0)
-    day_10 = np.mean(matriz[dic_composites[-10]], axis=0)
-    day_15 = np.mean(matriz[dic_composites[-15]], axis=0)
-    day_20 = np.mean(matriz[dic_composites[-20]], axis=0)
-    day_5_post = np.mean(matriz[dic_composites[5]], axis=0)
-
-    composites_matrix = np.zeros((6, day_0.shape[0], day_0.shape[1]))
-    for i, matriz_i in enumerate([day_20, day_15, day_10, day_5, day_0, day_5_post]):
-        composites_matrix[i,:,:] = matriz_i
-    
-    return composites_matrix, composites_matrix_complete
-
-
 def subseasonal_anomalies(df_VAR):
+    import numpy as np
+    import pandas as pd
     years = np.unique(np.array([ii.year for ii in df_VAR.index]))
     ANOMA = df_VAR * np.nan
     for i in years:
@@ -263,6 +260,7 @@ def subseasonal_anomalies(df_VAR):
 
 def hilbert_filtered(x, k_min, k_max, N=None, axis=-1, path=''):
     from scipy import linalg, fft as sp_fft
+    import numpy as np
     """
     Compute the analytic signal, using the Hilbert transform.
 
@@ -390,24 +388,14 @@ def hilbert_filtered(x, k_min, k_max, N=None, axis=-1, path=''):
     return x
 
 
-def calculate_composites2(pos_HW, matriz):
+def calculate_composites_event(pos_HW, matriz):
+    import numpy as np
     dic_composites = {}
 
     time_lags = np.arange(-20, 21, 1)
-    for pos in pos_HW.index:
-        if pos == 0: 
-            dic_composites[0] = []
-            dic_composites[0].append(pos_HW.iloc[0][0])
-            continue
-        elif pos_HW.iloc[pos][0] >= 27270: break  # len(other variables)
-        elif pos == pos_HW.index[-1]:
-            break
-        elif pos_HW.iloc[pos][0]-1 != pos_HW.iloc[pos-1][0]:
-            for num in time_lags:  
-                if num in dic_composites.keys(): dic_composites[num].append(pos_HW.iloc[pos][0]+num)  
-                else: 
-                    dic_composites[num] = []
-                    dic_composites[num].append(pos_HW.iloc[pos][0]+num)
+    for num in time_lags:
+        dic_composites[num] = []  
+        dic_composites[num].append(pos_HW+num)  
 
     composites_matrix_complete =  np.zeros((len(time_lags), matriz.shape[1], matriz.shape[2]))
     for ii, lag in enumerate(dic_composites.keys()):
@@ -425,3 +413,60 @@ def calculate_composites2(pos_HW, matriz):
         composites_matrix[i,:,:] = matriz_i
     
     return composites_matrix, composites_matrix_complete
+
+
+def calculate_composites2(pos_HW, matriz):
+    import numpy as np
+    dic_composites = {}
+
+    time_lags = np.arange(-20, 21, 1)
+    for pos in pos_HW.index:
+        if pos == 0: 
+            dic_composites[0] = []
+            dic_composites[0].append(int(pos_HW.iloc[0][0]))
+            continue
+        #elif pos_HW.iloc[pos][0] >= 27270: break  # len(other variables)
+        elif pos_HW.iloc[pos][0] == matriz.shape[0]-20: break
+        elif pos == pos_HW.index[-1]:
+            break
+        elif pos_HW.iloc[pos][0]-1 != pos_HW.iloc[pos-1][0]:
+            for num in time_lags:  
+                if num in dic_composites.keys(): dic_composites[num].append(int(pos_HW.iloc[pos][0]+num))  
+                else: 
+                    dic_composites[num] = []
+                    dic_composites[num].append(int(pos_HW.iloc[pos][0]+num))
+
+    composites_matrix_complete =  np.zeros((len(time_lags), matriz.shape[1], matriz.shape[2]))
+    for ii, lag in enumerate(dic_composites.keys()):
+        composites_matrix_complete[ii] = np.mean(matriz[dic_composites[lag]], axis = 0)
+
+    day_0 = np.mean(matriz[dic_composites[0]], axis=0)
+    day_5 = np.mean(matriz[dic_composites[-5]], axis=0)
+    day_10 = np.mean(matriz[dic_composites[-10]], axis=0)
+    day_15 = np.mean(matriz[dic_composites[-15]], axis=0)
+    day_20 = np.mean(matriz[dic_composites[-20]], axis=0)
+    day_5_post = np.mean(matriz[dic_composites[5]], axis=0)
+
+    composites_matrix = np.zeros((6, day_0.shape[0], day_0.shape[1]))
+    for i, matriz_i in enumerate([day_20, day_15, day_10, day_5, day_0, day_5_post]):
+        composites_matrix[i,:,:] = matriz_i
+    
+    return composites_matrix, composites_matrix_complete
+
+
+# ================================= PHASE SPEED ===============================================
+def zonal_mean_1D(temp_mean_2D, Lats, pos_max, path):
+    import matplotlib.colors
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig = plt.figure(figsize=[7, 5.5])
+    plt.plot(np.nanmean(temp_mean_2D, axis=1), color='k')
+    plt.ylabel('Mean zonal wind [m/s]', fontsize=13)
+    plt.xlabel('Latitude [°]', fontsize=13)
+    plt.xticks(np.floor(np.linspace(0, len(Lats)-1, 9)).astype(int), Lats[np.floor(np.linspace(0, len(Lats)-1, 9)).astype(int)], fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.axhline(np.nanmean(temp_mean_2D, axis=1)[pos_max], 0, pos_max, color='teal', linestyle='--')
+    plt.axvline(pos_max, 0, pos_max, color='teal', linestyle='--')
+    plt.savefig(path, dpi=200)
+    plt.close()
+    
