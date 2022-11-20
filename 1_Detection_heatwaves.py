@@ -24,7 +24,7 @@ import cartopy
 from cartopy import crs
 import matplotlib.ticker as mticker
 import matplotlib.ticker as ticker
-
+from scipy import ndimage
 
 # INPUTS TO CHANGE ===========================================================================================================================
 # name: It can be NCEP or the name of the experiment (output of the model)
@@ -36,21 +36,50 @@ import matplotlib.ticker as ticker
 # lat_minHW, lat_maxHW, lon_minHW, lon_minHW: to define the area where the events will be detected
 # delete_days is the number of days to cut (only for output models). 
 
-name = 'NCEP'  
-nc_name = 't1000_NCEP.nc'
-var = 't1000'
-vel = [5, 1]
+# name = 'NCEP'  
+# nc_name = 't2m_NCEP.nc'
+# var = 't1000'
+# vel = [5, 1]
+# min_duration = 5
+# threshold_value = 97.5
+# lat_minHW = 25; lat_maxHW = 50; lon_minHW = 235; lon_maxHW = 290; midlat=45 #235 to 290
+# seasons = True 
+# topography = True
+# delete_days = ''
+# path_data = f'/scratch/brown/castanev/{name}/'
+
+# name = 'CAM'  
+# nc_name = f't1000_{name}.nc'
+# var = 't1000'
+# vel = [5, 1]
+# min_duration = 5
+# threshold_value = 97.5
+# lat_minHW = 25; lat_maxHW = 50; lon_minHW = 235; lon_maxHW = 290; midlat=45 #235 to 290
+# seasons = True 
+# topography = True
+# delete_days = 1000
+# path_data = f'/scratch/brown/castanev/{name}/'
+
+name = 'exp1_Held_Suarez'  
+nc_name = f't.atmos_daily.nc'
+var = 'temp'
+vel = [7, 1]
 min_duration = 5
 threshold_value = 97.5
-lat_minHW = 30; lat_maxHW = 50; lon_minHW = 245; lon_maxHW = 290; midlat=45
-seasons = True 
-topography = True
-delete_days = ''
+lat_minHW = 30; lat_maxHW = 50; lon_minHW = 245; lon_maxHW = 275; midlat=45
+seasons = False 
+topography = False
+delete_days = 1000
+path_data = f'/scratch/brown/castanev/DryCore_Wu/output/{name}/post_processed/output/'
+
 
 # ============================================================================================================================================
-path_data = f'{os.path.abspath(os.getcwd())}/{name}/Data/'
-path_figures = f'{os.path.abspath(os.getcwd())}/{name}/Figures/'
-path_outputs = f'{os.path.abspath(os.getcwd())}/{name}/'
+# path_data = f'{os.path.abspath(os.getcwd())}/{name}/Data/'
+# path_figures = f'{os.path.abspath(os.getcwd())}/{name}/Figures/'
+# path_outputs = f'{os.path.abspath(os.getcwd())}/{name}/'
+
+path_figures = f'/home/castanev/Heat-waves-dynamics/{name}/Figures/'
+path_outputs = f'/home/castanev/Heat-waves-dynamics/{name}/'
 
 methodology = 'Teng'
 vel_str = f'vel{str(vel[0])}{str(vel[1])}'
@@ -63,7 +92,6 @@ t = t.values.reshape(t_k.shape[0], t_k.shape[1], t_k.shape[2])
 lats = np.array(ncfile['lat'])
 lons = np.array(ncfile['lon'])
 time = np.array(ncfile['time'])
-
 
 # Spatial cut: United States
 pos_lats = np.where((lats >= lat_minHW) & (lats <= lat_maxHW))
@@ -78,13 +106,19 @@ min_grid_5 = round(lats_US.shape[0] * lons_US.shape[0] * 0.05)
 print(f"Total de días analizados = {t_US.shape[0]}")
 print(f'5% of the total grids corresponds to = {min_grid_5}')  
 
+if seasons == True:
+    if   name == 'NCEP': dates_d = np.array([dt.datetime(1800,1,1) + dt.timedelta(hours = int(time[i])) for i in range(len(time))])
+    elif name in ['CAM', 'LENS']:  
+        time = [str(int(time[i]))[-4:] for i in range(len(time))]
+        dates_d = np.array([dt.datetime.strptime(i, '%m%d') for i in time])
+        t_US = t_US[delete_days:,:,:]
+        dates_d = dates_d[delete_days:]
 
-if name == 'NCEP':
-    dates_d = np.array([dt.datetime(1800,1,1) + dt.timedelta(hours = int(time[i])) for i in range(len(time))])
     Month = np.array([ii.month for ii in dates_d])
     df_t = pd.DataFrame(index=dates_d, data=np.reshape(t_US, [t_US.shape[0], t_US.shape[1] * t_US.shape[2]]))
+
     days_summer = np.array([dt.datetime(2021, 6, 1) + relativedelta(days=int(xx)) for xx in range(92)])  # random year
-    
+
     threshold = np.zeros([len(days_summer), len(lats_US), len(lons_US)])
     for i, d in enumerate(days_summer):
         t_pos1 = df_t.index.get_indexer_for((df_t.loc[(df_t.index.month == d.month) & (df_t.index.day == d.day)].index))
@@ -109,51 +143,52 @@ if name == 'NCEP':
         threshold_pos = df_threshold.index.get_indexer_for(
             (df_threshold.loc[(df_threshold.index.month == date.month) & (df_threshold.index.day == date.day)].index))
         
+        if i+1 == dates_summer.shape[0]: break
+        date_2 = dates_summer[i+1]
+        threshold_pos_2 = df_threshold.index.get_indexer_for(
+            (df_threshold.loc[(df_threshold.index.month == date_2.month) & (df_threshold.index.day == date_2.day)].index))
+        
         # Condition i). More than 5% of the domain (US) has daily averaged SAT exceeding the threshold value
         cond_1 = t_US[pos_summer[i], :, :] > threshold[threshold_pos, :, :]
+        cond_1_2 = t_US[pos_summer[i] + vel[1], :, :] > threshold[threshold_pos_2, :, :]
         grid_cont = np.count_nonzero(cond_1)
 
         # Condition ii): Centre of these warm points does not move faster than 5◦ latitude or longitude per day
-        # Center defined as the point with the max temperature in the domain
         if pos_summer[i] + vel[1] == t_US.shape[0]: break
-        max_i = np.max(t_US[pos_summer[i], :, :])
-        pos_max = np.where(t_US[pos_summer[i], :, :] == max_i)
-        max_i2 = np.max(t_US[pos_summer[i] + vel[1], :, :])
-        pos_max2 = np.where(t_US[pos_summer[i] + vel[1], :, :] == max_i2)
 
-        dif_lats = np.abs(lats_US[pos_max2[0]] - lats_US[pos_max[0]])
-        dif_lons = np.abs(lons_US[pos_max2[1]] - lons_US[pos_max[1]])
+        pos_max = ndimage.measurements.center_of_mass(cond_1[0])
+        pos_max2 = ndimage.measurements.center_of_mass(cond_1_2[0])
 
-        if grid_cont > min_grid_5 and dif_lats.all() <= vel[0] and dif_lons.all() <= vel[0]:
+        dif_lats = np.abs(pos_max2[0] - pos_max[0]) * np.abs(lats_US[1]-lats_US[0])
+        dif_lons = np.abs(pos_max2[1] - pos_max[1]) * np.abs(lons_US[1]-lons_US[0])
+
+        if (grid_cont > min_grid_5) and (dif_lats < vel[0]) and (dif_lons < vel[0]):
             pos_heat_wavesi.append(pos_summer[i])  # dates_d[pos_summer[i]] is the date that meets both conditions
 
 
-
-elif (name != 'NCEP') and (seasons == False): 
-    t = t[delete_days:,:,:]
+elif seasons == False:
+    t_US = t_US[delete_days:,:,:]
     df_t = pd.DataFrame(data=np.reshape(t_US, [t_US.shape[0], t_US.shape[1] * t_US.shape[2]]))
     threshold = np.percentile(t_US, threshold_value, axis=0)
-    
+
     pos_heat_wavesi = []
     for pos in range(t_US.shape[0]):
+        if pos + vel[1] == t_US.shape[0]: break
         # Condition i). More than 5% of the domain (US) has daily averaged SAT exceeding the threshold value
         cond_1 = t_US[pos, :, :] > threshold
+        cond_1_2 = t_US[pos + vel[1], :, :] > threshold
         grid_cont = np.count_nonzero(cond_1)
 
         # Condition ii): Centre of these warm points does not move faster than 5◦ latitude or longitude per day
         # Center defined as the point with the max temperature in the domain     
-        if pos + vel[1] == t_US.shape[0]: break
-        max_i = np.max(t_US[pos, :, :])
-        pos_max = np.where(t_US[pos, :, :] == max_i)
-        max_i2 = np.max(t_US[pos + vel[1], :, :])
-        pos_max2 = np.where(t_US[pos + vel[1], :, :] == max_i2)
+        pos_max = ndimage.measurements.center_of_mass(cond_1)
+        pos_max2 = ndimage.measurements.center_of_mass(cond_1_2)
 
-        dif_lats = np.abs(lats_US[pos_max2[0]] - lats_US[pos_max[0]])
-        dif_lons = np.abs(lons_US[pos_max2[1]] - lons_US[pos_max[1]])
+        dif_lats = np.abs(pos_max2[0] - pos_max[0]) * np.abs(lats_US[1]-lats_US[0])
+        dif_lons = np.abs(pos_max2[1] - pos_max[1]) * np.abs(lons_US[1]-lons_US[0])
 
-        if grid_cont > min_grid_5 and dif_lats.all() <= vel[0] and dif_lons.all() <= vel[0]:
+        if (grid_cont > min_grid_5) and (dif_lats < vel[0]) and (dif_lons < vel[0]):
             pos_heat_wavesi.append(pos)  # dates_d[pos_summer[i]] is the date that meets both conditions
-
 
 
 duration_hw, pos_day1_hw = duration_heat_waves(pos_heat_wavesi, min_duration)
@@ -168,10 +203,10 @@ PDF_temp = Hist / len(duration_hw)
 fig = plt.figure(figsize=[4, 4])
 df = pd.DataFrame({'x': bins, 'PDF': PDF_temp})
 df.plot.bar(x='x', y='PDF', rot=0, color='dimgray', width=.4)
-plt.ylabel('PDF', fontsize=13, color = 'dimgray')
-plt.xlabel('Duration (d)', fontsize=13, color = 'dimgray')
-plt.xticks(fontsize=12, color = 'dimgray')
-plt.yticks(fontsize=12, color = 'dimgray')
+plt.ylabel('PDF', fontsize=13)
+plt.xlabel('Duration (d)', fontsize=13)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
 plt.legend(fontsize=12, labelcolor='linecolor')
 #plt.show()
 plt.savefig(path_figures + f'SAT_PDF_{methodology}_{vel_str}.png', dpi=200)
@@ -193,7 +228,7 @@ resume.to_csv(f'{path_outputs}/../resume_heatWaves_statistics.csv')
 
 # Saving the position of HW days in a .csv
 pos_heat_waves_serie = pd.Series(pos_heat_waves)
-pos_heat_waves_serie.to_csv(f'{path_outputs}/resume_positions_HWdays_{model}_{methodology}.csv')
+pos_heat_waves_serie.to_csv(f'{path_outputs}/resume_positions_HWdays_{name}_{methodology}.csv')
 
 t_US_hw = t_US[pos_heat_waves, :, :]
 
@@ -201,18 +236,33 @@ t_US_hw = t_US[pos_heat_waves, :, :]
 # Calculating anomalies
 if seasons == True: anom_t_US = anomalies_seasons(df_t)
 elif seasons == False: anom_t_US = anomalies_noseasons(df_t)
-else: print('Variable "seasons" must be defined') 
 
 anom_t_US = anom_t_US.values.reshape(anom_t_US.shape[0], lats_US.shape[0], lons_US.shape[0])
 anom_t_US_hw = anom_t_US[pos_heat_waves, :, :]
+
+
+# # Creating list with all heat waves events 
+# intensities = []
+# for dur_i, pos1_i in zip(duration_hw, pos_day1_hw):
+#     intensity_i = round(np.max(np.mean(anom_t_US[pos1_i:pos1_i+dur_i-1], axis=0)),2)
+#     intensities.append(intensity_i)
+# pos_heat_waves_serie = pd.DataFrame(data = {'Date 0': dates_d[pos_day1_hw], 'Duration': duration_hw, 'Intensity': intensities}, index = pos_day1_hw)
+# pos_heat_waves_serie.to_csv(f'{path_outputs}/Heat_waves_events_list.csv')
 
 
 # Ploting intensity
 RdYlBu_v2_list = ['rgb(224,243,248)','rgb(171,217,233)','rgb(116,173,209)','rgb(69,117,180)','rgb(49,54,149)']
 my_cmap = matplotlib.colors.ListedColormap(RdYlBu_v2_list, name='RdYlBu')
 
-li, ls, intervalos, limite, color = 0.7, 3.3, 15, 1.6, 'RdYlBu_r'
+li, ls, intervalos, limite, color = 0.7, 3, 15, 1.4, 'RdYlBu_r'
 bounds = np.round(np.linspace(li, ls, intervalos), 3)
 colormap = center_white_anom(color, intervalos, bounds, limite)
-maps2(lons_US, np.ndarray.round(lats_US,2), 0.7, 3.3 + np.abs(bounds[0] - bounds[1]), np.nanmean(anom_t_US_hw, axis=0), r'SAT anomalies [°C]',
+maps2(lons_US, np.ndarray.round(lats_US,2), 0.7, 3 + np.abs(bounds[0] - bounds[1]), np.nanmean(anom_t_US_hw, axis=0), r'SAT anomalies [°C]',
       colormap, path_figures + f'SAT_mean_anomt_hw_{methodology}_{vel_str}.png', topography)
+
+
+
+
+
+
+
