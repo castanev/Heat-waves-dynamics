@@ -14,7 +14,8 @@
 def center_white_anom(cmap, num, bounds, limite):
     import matplotlib as mpl
     import numpy as np
-    barcmap = mpl.cm.get_cmap(cmap, num)
+    import matplotlib.cm 
+    barcmap = matplotlib.cm.get_cmap(cmap, num)
     barcmap.set_bad(color='white', alpha=0.5)
     bar_vals = barcmap(np.arange(num))  # extract those values as an array
     pos = np.arange(num)
@@ -25,26 +26,60 @@ def center_white_anom(cmap, num, bounds, limite):
     return newcmap
 
 
-
 def maps1(x, y, minn, maxx, matriz,  cmap, path, norm, units='', topography = ''):
     import matplotlib.pyplot as plt
     import cartopy
     from cartopy import crs
-    fig = plt.figure(figsize=[8, 6])
-    ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(central_longitude=180))
+    import numpy as np
+    import matplotlib.ticker as mticker
 
+    fig = plt.figure(figsize=[6.5, 5.5])
+    ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(central_longitude=180))
+    
     if topography == True:
         ax.add_feature(cartopy.feature.BORDERS, lw=0.5)
         ax.add_feature(cartopy.feature.COASTLINE, lw=0.5, zorder=11)
 
-    im = ax.contourf(x, y[:], matriz[:,:], levels=20, cmap = cmap, vmin=minn, vmax=maxx, norm=norm)
-    r = ax.contour(x, y, matriz, levels=20, colors='k', linewidths=0.5)
+    im = ax.contourf(x, y[:], matriz[:,:], levels=np.arange(minn, maxx, 1), cmap = cmap, norm=norm, extend='both', transform=crs.PlateCarree())
+    #r = ax.contour(x, y, matriz, levels=15, colors='k', linewidths=0.5)
+    
+    ax.set_yticks([-60,-25,0,25,60])
+    ax.tick_params(axis='both', labelsize=10)
+    gl = ax.gridlines(crs=crs.PlateCarree(), draw_labels=True,
+                      linewidth=0.7, color='gray', alpha=0.2, linestyle='--')
+
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.ylocator = mticker.FixedLocator([-60,-25,0,25,60])
+    gl.xlabel_style = {'size': 10}
+    gl.ylabel_style = {'size': 10}
+    
     cb = plt.colorbar(im, orientation="horizontal", pad=0.1, format='%.1f', shrink=0.8)
-    cb.set_label(units, fontsize=9, color='dimgrey')
-    cb.ax.tick_params(labelsize=9)
+    cb.set_label(units, fontsize=11, color='dimgrey')
+    cb.ax.tick_params(labelsize=10)
     plt.savefig(path, dpi=200)
     plt.close()
 
+def maps_vert(y, z, minn, maxx, matriz,  cmap, path, norm, units=''):
+    import matplotlib.pyplot as plt
+    import cartopy
+    from cartopy import crs
+    import numpy as np
+    import matplotlib.ticker as mticker
+
+    fig = plt.figure(figsize=[6.5, 5.5])
+    ax = fig.add_subplot(1, 1, 1)
+
+    im = ax.contourf(y, z[:], matriz[:,:], levels=np.arange(minn, maxx, 1), cmap = cmap, norm=norm, extend='both')
+    #r = ax.contour(x, y, matriz, levels=15, colors='k', linewidths=0.5)
+    plt.gca().invert_yaxis()
+    ax.tick_params(axis='both', labelsize=10)
+    
+    cb = plt.colorbar(im, orientation="horizontal", pad=0.1, format='%.1f', shrink=0.8)
+    cb.set_label(units, fontsize=11, color='dimgrey')
+    cb.ax.tick_params(labelsize=10)
+    plt.savefig(path, dpi=500)
+    plt.close()
 
 
 def maps2(Lons, Lats, minn, maxx, matriz, var, cmap, path, topography):
@@ -53,7 +88,7 @@ def maps2(Lons, Lats, minn, maxx, matriz, var, cmap, path, topography):
     import numpy as np
     import matplotlib.ticker as mticker
     from cartopy import crs
-    fig = plt.figure(figsize=[6.5, 4.5])
+    fig = plt.figure(figsize=[6.5, 5.5])
     ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(central_longitude=180))
     
     if topography == True:
@@ -61,9 +96,9 @@ def maps2(Lons, Lats, minn, maxx, matriz, var, cmap, path, topography):
         ax.add_feature(cartopy.feature.COASTLINE, lw=0.5, zorder=11)
 
     im = ax.contourf(Lons, Lats, matriz, cmap=cmap, extend='both', \
-                     levels=np.arange(minn, maxx, 0.2), transform=crs.PlateCarree())
-    ax.set_yticks([30, 35, 40, 45])
-    ax.tick_params(axis='both', labelsize=14)
+                     levels=np.arange(minn, maxx, 0.5), transform=crs.PlateCarree())
+    #ax.set_yticks([30, 35, 40, 45])
+    #ax.tick_params(axis='both', labelsize=14)
 
     gl = ax.gridlines(crs=crs.PlateCarree(), draw_labels=True,
                       linewidth=0.7, color='gray', alpha=0.2, linestyle='--')
@@ -131,7 +166,55 @@ def composites_coastlines(lats, lons, Matriz_t, min_t, max_t, Matriz_sf, levels_
     plt.savefig(path, dpi=500)
     plt.close()
 
+def composites_coastlines_2(lats, lons, Matriz_t, min_t, max_t, Matriz_sf, levels_sf, Matriz_env, levels_env, lat_minHW, lat_maxHW, lon_minHW, lon_maxHW, cmap, path, var, topography):
+    import matplotlib.pyplot as plt
+    import cartopy
+    import numpy as np
+    import matplotlib.ticker as mticker
+    from cartopy import crs
+    fig = plt.figure(figsize=[15, 17])
+    for i, tit in enumerate(['Day -11', 'Day -9', 'Day -6', 'Day -3', 'Day 0', 'Day 5']):
+        ax = fig.add_subplot(6, 1, i + 1, projection=crs.PlateCarree(central_longitude=180))
+        if topography == True:
+            ax.add_feature(cartopy.feature.COASTLINE, lw=0.6, zorder=11)
 
+        ax.set_title(tit, fontsize = 17)
+        im = ax.contourf(lons, lats, Matriz_t[i, :, :], cmap=cmap, extend='both', levels=np.arange(min_t, max_t, 0.2),transform=crs.PlateCarree())
+        im2 = ax.contour(lons, lats, Matriz_env[i, :, :], extend='both', levels=levels_env, colors='k', linewidths=2.5,transform=crs.PlateCarree())
+        ax.clabel(im2, inline=True, fontsize=14, fmt='%1.1f')
+        levels_sf = np.array(levels_sf)
+        im3 = ax.contour(lons, lats, Matriz_sf[i, :, :], extend='both', levels=levels_sf[levels_sf>0], colors='firebrick', linewidths=2.3, transform=crs.PlateCarree())
+        im4 = ax.contour(lons, lats, Matriz_sf[i, :, :], extend='both', levels=levels_sf[levels_sf<0], colors='mediumblue', negative_linestyles = 'dashed', linewidths=2.1,transform=crs.PlateCarree())
+
+        ax.plot([lon_minHW, lon_maxHW], [lat_minHW, lat_minHW], transform=crs.PlateCarree(), color='b', lw=1.5)
+        ax.plot([lon_minHW, lon_maxHW], [lat_maxHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
+        ax.plot([lon_minHW, lon_minHW], [lat_minHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
+        ax.plot([lon_maxHW, lon_maxHW], [lat_minHW, lat_maxHW], transform=crs.PlateCarree(), color='b', lw=1.5)
+        ax.set_yticks([30, 50])
+        ax.tick_params(axis='both', labelsize=14)
+        plt.ylim(20,70)
+
+        gl = ax.gridlines(crs=crs.PlateCarree(), draw_labels=True,linewidth=0.8, color='gray', alpha=0.5, linestyle='--')
+        gl.top_labels = False
+        gl.ylocator = mticker.FixedLocator([30, 50])
+        gl.xlabel_style = {'size': 14}
+        gl.ylabel_style = {'size': 14}
+
+    cbaxes = fig.add_axes([0.3, 0.06, 0.4, 0.015])
+    cb = plt.colorbar(im, orientation="horizontal", pad=0.2, cax=cbaxes, format='%.1f')
+    cb.set_label(var, fontsize=15)
+    cb.outline.set_edgecolor('k')
+    cb.ax.tick_params(labelsize=14)
+    plt.subplots_adjust(left=0.04,
+                    bottom=0.1,
+                    right=0.96,
+                    top=0.94,
+                    wspace=0.12,
+                    hspace=0.12)
+
+    plt.savefig(path, dpi=500)
+    plt.close()
+    
 def hovmoller(time_lags, lons, Matriz_t, cmap_t, norm_t, min_t, max_t, Matriz_sf, cmap_sf, norm_sf, min_sf, max_sf, Matriz_env, levels_env, path, var_1 = '', var_2 = ''):
     import matplotlib.colors
     import matplotlib.pyplot as plt
@@ -209,18 +292,19 @@ def duration_heat_waves(pos_hw, min_duration):
 
 def anomalies_seasons(df_VAR):
     import numpy as np
+    import pandas as pd
     ANOMA = df_VAR * np.nan
     for i in np.arange(1, 13):
-        mes = df_VAR.loc[df_VAR.index.month == i]
+        mes = df_VAR.loc[pd.DatetimeIndex(df_VAR.index).month == i]
         temp = mes * np.nan
-        Nodays = mes.index.day.max()
+        Nodays = pd.DatetimeIndex(mes.index).day.max()
         if np.isnan(Nodays) == True: continue
         for j in np.arange(1, Nodays + 1):
-            dia = mes.loc[mes.index.day == j]
+            dia = mes.loc[pd.DatetimeIndex(mes.index).day == j]
             media = dia.mean()
             anoma = dia - media
-            temp[temp.index.day == j] = anoma
-        ANOMA.loc[temp.index] = temp
+            temp[pd.DatetimeIndex(temp.index).day == j] = anoma
+        ANOMA.loc[pd.DatetimeIndex(temp.index)] = temp
     return ANOMA
 
 
@@ -398,7 +482,7 @@ def calculate_composites_event(pos_HW, matriz):
         dic_composites[num].append(pos_HW+num)  
 
     composites_matrix_complete =  np.zeros((len(time_lags), matriz.shape[1], matriz.shape[2]))
-    for ii, lag in enumerate(dic_composites.keys()):
+    for ii, lag in enumerate(np.sort(list(dic_composites))):
         composites_matrix_complete[ii] = np.mean(matriz[dic_composites[lag]], axis = 0)
 
     day_0 = np.mean(matriz[dic_composites[0]], axis=0)
@@ -437,7 +521,7 @@ def calculate_composites2(pos_HW, matriz):
                     dic_composites[num].append(int(pos_HW.iloc[pos][0]+num))
 
     composites_matrix_complete =  np.zeros((len(time_lags), matriz.shape[1], matriz.shape[2]))
-    for ii, lag in enumerate(dic_composites.keys()):
+    for ii, lag in enumerate(np.sort(list(dic_composites))):
         composites_matrix_complete[ii] = np.mean(matriz[dic_composites[lag]], axis = 0)
 
     day_0 = np.mean(matriz[dic_composites[0]], axis=0)
